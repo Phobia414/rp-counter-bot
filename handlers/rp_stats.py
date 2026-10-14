@@ -1,5 +1,5 @@
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from aiogram import types, F
 from aiogram.filters import Command
@@ -37,6 +37,12 @@ def today_key() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
+def week_keys() -> list[str]:
+    """Список дат за последние 7 дней (включая сегодня)."""
+    now = datetime.now(timezone.utc)
+    return [(now - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(7)]
+
+
 def get_thread_id(message: types.Message) -> int:
     return getattr(message, "message_thread_id", None) or 0
 
@@ -48,7 +54,53 @@ def is_bot_owner(message: types.Message) -> bool:
     return message.from_user.id == RP_OWNER_ID
 
 
-# ==================== КОМАНДЫ (регистрируются ПЕРВЫМИ) ====================
+# ==================== ОБЩАЯ ЛОГИКА ТОПОВ ====================
+async def _render_top(message: types.Message, period: str, kind: str):
+    """
+    Отрисовка топа.
+    period: 'today' | 'week'
+    kind:   'rp'    | 'off'
+    """
+    thread_id = get_thread_id(message)
+
+    if period == "today":
+        keys = [today_key()]
+        period_label = "сегодня"
+    else:
+        keys = week_keys()
+        period_label = "за 7 дней"
+
+    rows = await get_rp_top(message.chat.id, thread_id, keys)
+
+    if kind == "rp":
+        rows = [r for r in rows if r["total_rp"] > 0]
+        title = f"🏆 <b>ТОП ПО ОТЫГРЫШУ ({period_label})</b>"
+        field = "total_rp"
+        empty_msg = f"📭 За {period_label} в этой ветке никто не играл."
+    else:
+        rows = [r for r in rows if r["total_off"] > 0]
+        rows.sort(key=lambda r: r["total_off"], reverse=True)
+        title = f"💬 <b>ТОП ПО ОФФТОПУ ({period_label})</b>"
+        field = "total_off"
+        empty_msg = f"📭 За {period_label} в этой ветке оффтопа не было."
+
+    if not rows:
+        await message.answer(empty_msg)
+        return
+
+    medals = {1: "🥇", 2: "🥈", 3: "🥉"}
+    lines = [title, "━━━━━━━━━━━━━", ""]
+    for i, r in enumerate(rows[:15], 1):
+        medal = medals.get(i, f"{i}.")
+        lines.append(f"{medal} <b>{_name(r)}</b> — {r[field]} симв.")
+
+    try:
+        await message.answer("\n".join(lines), parse_mode="HTML")
+    except Exception as e:
+        log.warning(f"top send error: {e}")
+
+
+# ==================== КОМАНДЫ УПРАВЛЕНИЯ ====================
 @dp.message(Command("rp_on"))
 async def cmd_rp_on(message: types.Message):
     if message.chat.type not in ("group", "supergroup"):
@@ -61,8 +113,10 @@ async def cmd_rp_on(message: types.Message):
     await message.answer(
         "✅ <b>Счётчик РП включён в этом чате</b>\n\n"
         "<b>Команды:</b>\n"
-        "• <code>/top_rp</code> — топ по отыгрышу\n"
-        "• <code>/top_off</code> — топ по оффтопу\n"
+        "• <code>/top_rp</code> — топ по отыгрышу (сегодня)\n"
+        "• <code>/top_rp_week</code> — топ по отыгрышу (7 дней)\n"
+        "• <code>/top_off</code> — топ по оффтопу (сегодня)\n"
+        "• <code>/top_off_week</code> — топ по оффтопу (7 дней)\n"
         "• <code>/rp_list</code> — полный список\n"
         "• <code>/rp_me</code> — статистика игрока\n"
         "• <code>/rp_off</code> — выключить",
@@ -81,61 +135,45 @@ async def cmd_rp_off(message: types.Message):
     await message.answer("🔕 Счётчик РП выключен.")
 
 
+# ==================== ТОПЫ ПО ОТЫГРЫШУ ====================
 @dp.message(Command("top_rp", "топрп"))
 async def cmd_top_rp(message: types.Message):
     if message.chat.type not in ("group", "supergroup"):
         return
     if not is_bot_owner(message):
         return
+    await _render_top(message, "today", "rp")
 
-    thread_id = get_thread_id(message)
-    rows = await get_rp_top(message.chat.id, thread_id, [today_key()])
-    rows = [r for r in rows if r["total_rp"] > 0]
 
-    if not rows:
-        await message.answer("📭 В этой ветке сегодня никто не играл.")
+@dp.message(Command("top_rp_week", "топрпнед"))
+async def cmd_top_rp_week(message: types.Message):
+    if message.chat.type not in ("group", "supergroup"):
         return
-
-    medals = {1: "🥇", 2: "🥈", 3: "🥉"}
-    lines = ["🏆 <b>ТОП ПО ОТЫГРЫШУ (сегодня)</b>", "━━━━━━━━━━━━━", ""]
-    for i, r in enumerate(rows[:15], 1):
-        medal = medals.get(i, f"{i}.")
-        lines.append(f"{medal} <b>{_name(r)}</b> — {r['total_rp']} симв.")
-
-    try:
-        await message.answer("\n".join(lines), parse_mode="HTML")
-    except Exception as e:
-        log.warning(f"top_rp send error: {e}")
+    if not is_bot_owner(message):
+        return
+    await _render_top(message, "week", "rp")
 
 
+# ==================== ТОПЫ ПО ОФФТОПУ ====================
 @dp.message(Command("top_off", "топофф"))
 async def cmd_top_off(message: types.Message):
     if message.chat.type not in ("group", "supergroup"):
         return
     if not is_bot_owner(message):
         return
+    await _render_top(message, "today", "off")
 
-    thread_id = get_thread_id(message)
-    rows = await get_rp_top(message.chat.id, thread_id, [today_key()])
-    rows = [r for r in rows if r["total_off"] > 0]
-    rows.sort(key=lambda r: r["total_off"], reverse=True)
 
-    if not rows:
-        await message.answer("📭 В этой ветке сегодня оффтопа не было.")
+@dp.message(Command("top_off_week", "топоффнед"))
+async def cmd_top_off_week(message: types.Message):
+    if message.chat.type not in ("group", "supergroup"):
         return
-
-    medals = {1: "🥇", 2: "🥈", 3: "🥉"}
-    lines = ["💬 <b>ТОП ПО ОФФТОПУ (сегодня)</b>", "━━━━━━━━━━━━━", ""]
-    for i, r in enumerate(rows[:15], 1):
-        medal = medals.get(i, f"{i}.")
-        lines.append(f"{medal} <b>{_name(r)}</b> — {r['total_off']} симв.")
-
-    try:
-        await message.answer("\n".join(lines), parse_mode="HTML")
-    except Exception as e:
-        log.warning(f"top_off send error: {e}")
+    if not is_bot_owner(message):
+        return
+    await _render_top(message, "week", "off")
 
 
+# ==================== СПИСОК ====================
 @dp.message(Command("rp_list"))
 async def cmd_rp_list(message: types.Message):
     if message.chat.type not in ("group", "supergroup"):
@@ -170,6 +208,7 @@ async def cmd_rp_list(message: types.Message):
         log.warning(f"rp_list send error: {e}")
 
 
+# ==================== ЛИЧНАЯ СТАТИСТИКА ====================
 @dp.message(Command("rp_me"))
 async def cmd_rp_me(message: types.Message):
     if message.chat.type not in ("group", "supergroup"):
@@ -208,7 +247,7 @@ async def cmd_rp_me(message: types.Message):
     )
 
 
-# ==================== СЧЁТЧИК (регистрируется ПОСЛЕДНИМ) ====================
+# ==================== СЧЁТЧИК ====================
 @dp.message(F.text)
 async def rp_stats_handler(message: types.Message):
     chat_id = message.chat.id
