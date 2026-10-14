@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 from config import DB_PATH
 
 # Часовой пояс клиентки (Украина)
-KYIV = ZoneInfo("Europe/Kiev")
+KYIV = ZoneInfo("Europe/Kyiv")
 
 
 async def init_db():
@@ -95,7 +95,6 @@ async def get_rp_top(chat_id, thread_id, date_keys):
 
 
 async def clear_old_rp_stats(days_keep=8):
-    # Обрезаем по киевской дате, чтобы не удалить вчерашний день
     cutoff = (datetime.now(KYIV) - timedelta(days=days_keep)).strftime("%Y-%m-%d")
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("DELETE FROM rp_stats WHERE date_key < ?", (cutoff,))
