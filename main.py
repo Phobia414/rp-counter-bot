@@ -18,14 +18,15 @@ log = get_logger(__name__)
 
 async def set_bot_commands():
     commands = [
-        BotCommand(command="top_rp",        description="Топ по отыгрышу (сегодня)"),
-        BotCommand(command="top_rp_week",   description="Топ по отыгрышу (7 дней)"),
-        BotCommand(command="top_off",       description="Топ по оффтопу (сегодня)"),
-        BotCommand(command="top_off_week",  description="Топ по оффтопу (7 дней)"),
-        BotCommand(command="rp_list",       description="Список участников"),
-        BotCommand(command="rp_me",         description="Личная статистика"),
-        BotCommand(command="rp_off",        description="Выключить счётчик"),
-        BotCommand(command="rp_on",         description="Включить счётчик"),
+        BotCommand(command="top_rp",         description="Топ по отыгрышу (сегодня)"),
+        BotCommand(command="top_rp_week",    description="Топ по отыгрышу (7 дней)"),
+        BotCommand(command="top_off",        description="Топ по оффтопу (сегодня)"),
+        BotCommand(command="top_off_week",   description="Топ по оффтопу (7 дней)"),
+        BotCommand(command="rp_list",        description="Список участников (сегодня)"),
+        BotCommand(command="rp_list_week",   description="Список участников (7 дней)"),
+        BotCommand(command="rp_me",          description="Личная статистика"),
+        BotCommand(command="rp_off",         description="Выключить счётчик"),
+        BotCommand(command="rp_on",          description="Включить счётчик"),
     ]
     try:
         await bot.set_my_commands(
