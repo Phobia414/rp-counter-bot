@@ -63,7 +63,7 @@ async def _render_top(message: types.Message, period: str, kind: str):
     """
     thread_id = get_thread_id(message)
 
-        if period == "today":
+    if period == "today":
         keys = [today_key()]
         period_label = "сегодня"
         period_label_cap = "Сегодня"
@@ -85,6 +85,7 @@ async def _render_top(message: types.Message, period: str, kind: str):
         title = f"💬 <b>ТОП ПО ОФФТОПУ ({period_label})</b>"
         field = "total_off"
         empty_msg = f"📭 {period_label_cap} в этой ветке оффтопа не было."
+
     if not rows:
         await message.answer(empty_msg)
         return
@@ -104,6 +105,7 @@ async def _render_top(message: types.Message, period: str, kind: str):
 # ==================== КОМАНДЫ УПРАВЛЕНИЯ ====================
 @dp.message(Command("rp_on"))
 async def cmd_rp_on(message: types.Message):
+    """Включает счётчик (если был выключен)."""
     if message.chat.type not in ("group", "supergroup"):
         return
     if not is_bot_owner(message):
@@ -113,27 +115,33 @@ async def cmd_rp_on(message: types.Message):
 
     await message.answer(
         "✅ <b>Счётчик РП включён в этом чате</b>\n\n"
-        "<b>Команды:</b>\n"
+        "💡 Бот работает автоматически — просто пишите сообщения.\n\n"
+        "<b>Команды (только для владельца):</b>\n"
         "• <code>/top_rp</code> — топ по отыгрышу (сегодня)\n"
         "• <code>/top_rp_week</code> — топ по отыгрышу (7 дней)\n"
         "• <code>/top_off</code> — топ по оффтопу (сегодня)\n"
         "• <code>/top_off_week</code> — топ по оффтопу (7 дней)\n"
         "• <code>/rp_list</code> — полный список\n"
         "• <code>/rp_me</code> — статистика игрока\n"
-        "• <code>/rp_off</code> — выключить",
+        "• <code>/rp_off</code> — выключить счётчик",
         parse_mode="HTML"
     )
 
 
 @dp.message(Command("rp_off"))
 async def cmd_rp_off(message: types.Message):
+    """Выключает счётчик в этом чате."""
     if message.chat.type not in ("group", "supergroup"):
         return
     if not is_bot_owner(message):
         return
 
     await disable_rp_chat(message.chat.id)
-    await message.answer("🔕 Счётчик РП выключен.")
+    await message.answer(
+        "🔕 Счётчик РП выключен.\n"
+        "Включить обратно: <code>/rp_on</code>",
+        parse_mode="HTML"
+    )
 
 
 # ==================== ТОПЫ ПО ОТЫГРЫШУ ====================
@@ -256,6 +264,7 @@ async def rp_stats_handler(message: types.Message):
         return
     if not message.from_user:
         return
+    # По умолчанию чат ВКЛЮЧЁН (кроме тех, где явно введён /rp_off)
     if not await is_rp_chat_enabled(chat_id):
         return
 
