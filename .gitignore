@@ -1,0 +1,39 @@
+# ===== SECRETS =====
+.env
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# ===== VIRTUAL ENV =====
+.venv/
+venv/
+env/
+ENV/
+
+# ===== VS CODE =====
+.vscode/
+.idea/
+
+# ===== DATABASE =====
+*.db
+*.sqlite
+*.sqlite3
+
+# ===== LOGS =====
+*.log
+logs/
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== WORKSPACE FILES =====
+*.code-workspace
