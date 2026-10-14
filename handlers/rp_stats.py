@@ -150,7 +150,8 @@ async def cmd_rp_on(message: types.Message):
         "• <code>/top_rp_week</code> — топ по отыгрышу (7 дней)\n"
         "• <code>/top_off</code> — топ по оффтопу (сегодня)\n"
         "• <code>/top_off_week</code> — топ по оффтопу (7 дней)\n"
-        "• <code>/rp_list</code> — полный список\n"
+        "• <code>/rp_list</code> — список участников (сегодня)\n"
+        "• <code>/rp_list_week</code> — список участников (7 дней)\n"
         "• <code>/rp_me</code> — статистика игрока\n"
         "• <code>/rp_off</code> — выключить счётчик",
         parse_mode="HTML"
@@ -211,21 +212,33 @@ async def cmd_top_off_week(message: types.Message):
     await _render_top(message, "week", "off")
 
 
-# ==================== СПИСОК ====================
-@dp.message(Command("rp_list"))
-async def cmd_rp_list(message: types.Message):
-    if message.chat.type not in ("group", "supergroup"):
-        return
-    if not is_bot_owner(message):
-        return
-
+# ==================== СПИСОК УЧАСТНИКОВ ====================
+async def _render_list(message: types.Message, period: str):
+    """
+    Отрисовка списка участников.
+    period: 'today' | 'week'
+    """
     thread_id = get_thread_id(message)
-    rows = await get_rp_top(message.chat.id, thread_id, [today_key()])
+
+    if period == "today":
+        keys = [today_key()]
+        period_label_cap = "сегодня"
+        empty_msg = "📭 Сегодня в этой ветке ещё не было активности."
+    else:
+        keys = week_keys()
+        period_label_cap = "за 7 дней"
+        empty_msg = "📭 За 7 дней в этой ветке ещё не было активности."
+
+    rows = await get_rp_top(message.chat.id, thread_id, keys)
     if not rows:
-        await message.answer("📭 Сегодня в этой ветке ещё не было активности.")
+        await message.answer(empty_msg)
         return
 
-    lines = ["📋 <b>СПИСОК УЧАСТНИКОВ (эта ветка, сегодня)</b>", "━━━━━━━━━━━━━", ""]
+    lines = [
+        f"📋 <b>СПИСОК УЧАСТНИКОВ (эта ветка, {period_label_cap})</b>",
+        "━━━━━━━━━━━━━",
+        ""
+    ]
     for i, r in enumerate(rows, 1):
         name = _name(r)
         total = r["total_rp"] + r["total_off"]
@@ -242,6 +255,24 @@ async def cmd_rp_list(message: types.Message):
         await message.answer(text, parse_mode="HTML")
     except Exception as e:
         log.warning(f"rp_list send error: {e}")
+
+
+@dp.message(Command("rp_list", "список"))
+async def cmd_rp_list(message: types.Message):
+    if message.chat.type not in ("group", "supergroup"):
+        return
+    if not is_bot_owner(message):
+        return
+    await _render_list(message, "today")
+
+
+@dp.message(Command("rp_list_week", "списокнед"))
+async def cmd_rp_list_week(message: types.Message):
+    if message.chat.type not in ("group", "supergroup"):
+        return
+    if not is_bot_owner(message):
+        return
+    await _render_list(message, "week")
 
 
 # ==================== ЛИЧНАЯ СТАТИСТИКА ====================
