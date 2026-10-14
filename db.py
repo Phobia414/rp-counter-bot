@@ -31,16 +31,19 @@ async def init_db():
             )
         """)
 
+        # ЧЁРНЫЙ СПИСОК: чаты, где счётчик ВЫКЛЮЧЕН.
+        # По умолчанию — все чаты ВКЛЮЧЕНЫ.
         await db.execute("""
-            CREATE TABLE IF NOT EXISTS rp_enabled_chats (
+            CREATE TABLE IF NOT EXISTS rp_disabled_chats (
                 chat_id INTEGER PRIMARY KEY,
-                enabled_at TEXT DEFAULT ''
+                disabled_at TEXT DEFAULT ''
             )
         """)
 
         await db.commit()
 
 
+# ============ RP STATS ============
 async def add_rp_chars(user_id, chat_id, thread_id, date_key, rp_chars, offtop_chars):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
@@ -106,27 +109,31 @@ async def remember_user_name(user_id, first_name, username):
         await db.commit()
 
 
+# ============ ЧЁРНЫЙ СПИСОК ЧАТОВ ============
 async def enable_rp_chat(chat_id):
+    """Убирает чат из чёрного списка (включает счётчик)."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM rp_disabled_chats WHERE chat_id = ?", (chat_id,))
+        await db.commit()
+
+
+async def disable_rp_chat(chat_id):
+    """Добавляет чат в чёрный список (выключает счётчик)."""
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
-            "INSERT OR REPLACE INTO rp_enabled_chats (chat_id, enabled_at) VALUES (?, ?)",
+            "INSERT OR REPLACE INTO rp_disabled_chats (chat_id, disabled_at) VALUES (?, ?)",
             (chat_id, datetime.now(timezone.utc).isoformat())
         )
         await db.commit()
 
 
-async def disable_rp_chat(chat_id):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("DELETE FROM rp_enabled_chats WHERE chat_id = ?", (chat_id,))
-        await db.commit()
-
-
 async def is_rp_chat_enabled(chat_id):
+    """True, если чат НЕ в чёрном списке. По умолчанию — включён."""
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute(
-            "SELECT 1 FROM rp_enabled_chats WHERE chat_id = ?", (chat_id,)
+            "SELECT 1 FROM rp_disabled_chats WHERE chat_id = ?", (chat_id,)
         ) as cur:
-            return await cur.fetchone() is not None
+            return await cur.fetchone() is None
 
 
 async def cleanup_old_data():
