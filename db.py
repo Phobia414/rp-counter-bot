@@ -1,6 +1,10 @@
 import aiosqlite
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 from config import DB_PATH
+
+# Часовой пояс клиентки (Украина)
+KYIV = ZoneInfo("Europe/Kiev")
 
 
 async def init_db():
@@ -31,8 +35,8 @@ async def init_db():
             )
         """)
 
-        # ЧЁРНЫЙ СПИСОК: чаты, где счётчик ВЫКЛЮЧЕН.
-        # По умолчанию — все чаты ВКЛЮЧЕНЫ.
+        # ЧЁРНЫЙ СПИСОК чатов: счётчик выключен только там, где введён /rp_off.
+        # По умолчанию — ВСЕ чаты ВКЛЮЧЕНЫ.
         await db.execute("""
             CREATE TABLE IF NOT EXISTS rp_disabled_chats (
                 chat_id INTEGER PRIMARY KEY,
@@ -91,7 +95,8 @@ async def get_rp_top(chat_id, thread_id, date_keys):
 
 
 async def clear_old_rp_stats(days_keep=8):
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=days_keep)).strftime("%Y-%m-%d")
+    # Обрезаем по киевской дате, чтобы не удалить вчерашний день
+    cutoff = (datetime.now(KYIV) - timedelta(days=days_keep)).strftime("%Y-%m-%d")
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("DELETE FROM rp_stats WHERE date_key < ?", (cutoff,))
         await db.commit()
