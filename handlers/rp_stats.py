@@ -17,7 +17,7 @@ from logger import get_logger
 log = get_logger(__name__)
 
 # Часовой пояс клиентки — Украина
-KYIV = ZoneInfo("Europe/Kiev")
+KYIV = ZoneInfo("Europe/Kyiv")
 
 
 # ==================== ПАРСЕР ====================
@@ -105,13 +105,13 @@ async def _render_top(message: types.Message, period: str, kind: str):
 
     if kind == "rp":
         rows = [r for r in rows if r["total_rp"] > 0]
-        title = f"🏆 <b>ТОП ПО ОТЫГРЫШУ ({period_label})</b>"
+        title = f"🏆 <b>ТОП ПО ОТЫГРЫШУ В ЭТОЙ ВЕТКЕ ({period_label})</b>"
         field = "total_rp"
         empty_msg = f"📭 {period_label_cap} в этой ветке никто не играл."
     else:
         rows = [r for r in rows if r["total_off"] > 0]
         rows.sort(key=lambda r: r["total_off"], reverse=True)
-        title = f"💬 <b>ТОП ПО ОФФТОПУ ({period_label})</b>"
+        title = f"💬 <b>ТОП ПО ОФФТОПУ В ЭТОЙ ВЕТКЕ ({period_label})</b>"
         field = "total_off"
         empty_msg = f"📭 {period_label_cap} в этой ветке оффтопа не было."
 
