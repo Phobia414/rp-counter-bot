@@ -63,12 +63,14 @@ async def _render_top(message: types.Message, period: str, kind: str):
     """
     thread_id = get_thread_id(message)
 
-    if period == "today":
+        if period == "today":
         keys = [today_key()]
         period_label = "сегодня"
+        period_label_cap = "Сегодня"
     else:
         keys = week_keys()
         period_label = "за 7 дней"
+        period_label_cap = "За 7 дней"
 
     rows = await get_rp_top(message.chat.id, thread_id, keys)
 
@@ -76,14 +78,13 @@ async def _render_top(message: types.Message, period: str, kind: str):
         rows = [r for r in rows if r["total_rp"] > 0]
         title = f"🏆 <b>ТОП ПО ОТЫГРЫШУ ({period_label})</b>"
         field = "total_rp"
-        empty_msg = f"📭 За {period_label} в этой ветке никто не играл."
+        empty_msg = f"📭 {period_label_cap} в этой ветке никто не играл."
     else:
         rows = [r for r in rows if r["total_off"] > 0]
         rows.sort(key=lambda r: r["total_off"], reverse=True)
         title = f"💬 <b>ТОП ПО ОФФТОПУ ({period_label})</b>"
         field = "total_off"
-        empty_msg = f"📭 За {period_label} в этой ветке оффтопа не было."
-
+        empty_msg = f"📭 {period_label_cap} в этой ветке оффтопа не было."
     if not rows:
         await message.answer(empty_msg)
         return
