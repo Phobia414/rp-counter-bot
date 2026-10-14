@@ -1,0 +1,18 @@
+services:
+  bot:
+    build: .
+    container_name: rp_bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./rp_bot.db:/app/rp_bot.db
+      - ./logs:/app/logs
+    environment:
+      - TZ=Europe/Moscow
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    stop_grace_period: 30s
