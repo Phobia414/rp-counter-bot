@@ -1,5 +1,7 @@
+import html
 import re
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from aiogram import types, F
 from aiogram.filters import Command
@@ -13,6 +15,9 @@ from db import (
 from logger import get_logger
 
 log = get_logger(__name__)
+
+# Часовой пояс клиентки — Украина
+KYIV = ZoneInfo("Europe/Kiev")
 
 
 # ==================== ПАРСЕР ====================
@@ -34,12 +39,13 @@ def count_chars(text: str) -> int:
 
 
 def today_key() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    """Сегодняшняя дата по Киеву."""
+    return datetime.now(KYIV).strftime("%Y-%m-%d")
 
 
 def week_keys() -> list[str]:
-    """Список дат за последние 7 дней (включая сегодня)."""
-    now = datetime.now(timezone.utc)
+    """Последние 7 дней по Киеву (включая сегодня)."""
+    now = datetime.now(KYIV)
     return [(now - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(7)]
 
 
@@ -52,6 +58,29 @@ def is_bot_owner(message: types.Message) -> bool:
     if not message.from_user:
         return False
     return message.from_user.id == RP_OWNER_ID
+
+
+# ==================== УТИЛИТЫ ====================
+def _name(row) -> str:
+    """Безопасное имя для HTML-вывода."""
+    if row.get("username"):
+        return f"@{html.escape(row['username'])}"
+    if row.get("first_name"):
+        return html.escape(row["first_name"])
+    return f"Игрок #{row['user_id']}"
+
+
+def _safe_join(lines: list[str], max_len: int = 3900) -> str:
+    """Собирает строки до лимита, не рвя HTML-теги."""
+    result = []
+    size = 0
+    for ln in lines:
+        if size + len(ln) + 1 > max_len:
+            result.append("…")
+            break
+        result.append(ln)
+        size += len(ln) + 1
+    return "\n".join(result)
 
 
 # ==================== ОБЩАЯ ЛОГИКА ТОПОВ ====================
@@ -208,9 +237,7 @@ async def cmd_rp_list(message: types.Message):
             f"   Всего: {total} · Отыгрыш: {rp} · Оффтоп: {off}"
         )
 
-    text = "\n".join(lines)
-    if len(text) > 4000:
-        text = text[:3900] + "\n…"
+    text = _safe_join(lines)
     try:
         await message.answer(text, parse_mode="HTML")
     except Exception as e:
@@ -226,10 +253,10 @@ async def cmd_rp_me(message: types.Message):
         return
 
     target_id = message.from_user.id
-    target_name = message.from_user.first_name or "Игрок"
+    target_name = html.escape(message.from_user.first_name or "Игрок")
     if message.reply_to_message and message.reply_to_message.from_user:
         target_id = message.reply_to_message.from_user.id
-        target_name = message.reply_to_message.from_user.first_name or "Игрок"
+        target_name = html.escape(message.reply_to_message.from_user.first_name or "Игрок")
 
     thread_id = get_thread_id(message)
     rows = await get_rp_top(message.chat.id, thread_id, [today_key()])
@@ -304,15 +331,6 @@ async def rp_stats_handler(message: types.Message):
         )
     except Exception as e:
         log.warning(f"remember_user_name error: {e}")
-
-
-# ==================== УТИЛИТА ====================
-def _name(row) -> str:
-    if row.get("username"):
-        return f"@{row['username']}"
-    if row.get("first_name"):
-        return row["first_name"]
-    return f"Игрок #{row['user_id']}"
 
 
 # ==================== CLEANUP ====================
