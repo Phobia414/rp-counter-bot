@@ -46,7 +46,7 @@ async def main():
 
     await set_bot_commands()
 
-    scheduler = AsyncIOScheduler(timezone="Europe/Moscow")
+    scheduler = AsyncIOScheduler(timezone="Europe/Kyiv")
     scheduler.add_job(
         cleanup_rp_stats,
         CronTrigger(hour=4, minute=0),
