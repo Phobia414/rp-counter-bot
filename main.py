@@ -24,7 +24,8 @@ async def set_bot_commands():
         BotCommand(command="top_rp_week",   description="Топ по отыгрышу (7 дней)"),
         BotCommand(command="top_off",       description="Топ по оффтопу (сегодня)"),
         BotCommand(command="top_off_week",  description="Топ по оффтопу (7 дней)"),
-        BotCommand(command="rp_list",       description="Список участников"),
+        BotCommand(command="rp_list",       description="Список участников (сегодня)"),
+        BotCommand(command="rp_list_week",  description="Список участников (7 дней)"),
         BotCommand(command="rp_me",         description="Личная статистика"),
     ]
     try:
@@ -60,11 +61,9 @@ async def main():
     log.info("=== БОТ ЗАПУЩЕН ===")
 
     try:
-        # НОВОЕ: Очищаем накопившиеся старые сообщения (защита от спама)
         log.info("🧹 Очистка очереди старых сообщений...")
         await bot.delete_webhook(drop_pending_updates=True)
         
-        # Запускаем получение новых сообщений
         await dp.start_polling(bot)
     finally:
         log.info("=== ОСТАНОВКА БОТА ===")

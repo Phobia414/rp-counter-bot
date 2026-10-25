@@ -5,7 +5,7 @@ from aiogram import types, F
 from aiogram.filters import Command
 
 from bot_instance import dp
-from config import RP_OWNER_ID, TZ  # Импортируем TZ
+from config import RP_OWNER_ID, TZ
 from db import (
     add_rp_chars, get_rp_top, remember_user_name,
     enable_rp_chat, disable_rp_chat, is_rp_chat_enabled,
@@ -13,7 +13,6 @@ from db import (
 from logger import get_logger
 
 log = get_logger(__name__)
-
 
 # ==================== ПАРСЕР ====================
 def parse_message(text: str):
@@ -25,29 +24,22 @@ def parse_message(text: str):
         return text[:idx], text[idx + 2:]
     return text, ""
 
-
 def count_chars(text: str) -> int:
     """Считает ТОЛЬКО буквы. Пробелы, знаки, цифры, эмодзи — игнорируются."""
     if not text:
         return 0
     return len(re.sub(r"[\W\d_]", "", text, flags=re.UNICODE))
 
-
-# НОВОЕ: Теперь используем TZ (Москва) вместо UTC
 def today_key() -> str:
     return datetime.now(TZ).strftime("%Y-%m-%d")
 
-
-# НОВОЕ: Теперь используем TZ (Москва) вместо UTC
 def week_keys() -> list[str]:
     """Список дат за последние 7 дней (включая сегодня)."""
     now = datetime.now(TZ)
     return [(now - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(7)]
 
-
 def get_thread_id(message: types.Message) -> int:
     return getattr(message, "message_thread_id", None) or 0
-
 
 # ==================== ДОСТУП ====================
 def is_bot_owner(message: types.Message) -> bool:
@@ -55,14 +47,8 @@ def is_bot_owner(message: types.Message) -> bool:
         return False
     return message.from_user.id == RP_OWNER_ID
 
-
 # ==================== ОБЩАЯ ЛОГИКА ТОПОВ ====================
 async def _render_top(message: types.Message, period: str, kind: str):
-    """
-    Отрисовка топа.
-    period: 'today' | 'week'
-    kind:   'rp'    | 'off'
-    """
     thread_id = get_thread_id(message)
 
     if period == "today":
@@ -101,14 +87,11 @@ async def _render_top(message: types.Message, period: str, kind: str):
     except Exception as e:
         log.warning(f"top send error: {e}")
 
-
 # ==================== КОМАНДЫ УПРАВЛЕНИЯ ====================
 @dp.message(Command("rp_on"))
 async def cmd_rp_on(message: types.Message):
-    if message.chat.type not in ("group", "supergroup"):
-        return
-    if not is_bot_owner(message):
-        return
+    if message.chat.type not in ("group", "supergroup"): return
+    if not is_bot_owner(message): return
 
     await enable_rp_chat(message.chat.id)
 
@@ -119,77 +102,64 @@ async def cmd_rp_on(message: types.Message):
         "• <code>/top_rp_week</code> — топ по отыгрышу (7 дней)\n"
         "• <code>/top_off</code> — топ по оффтопу (сегодня)\n"
         "• <code>/top_off_week</code> — топ по оффтопу (7 дней)\n"
-        "• <code>/rp_list</code> — полный список\n"
+        "• <code>/rp_list</code> — полный список (сегодня)\n"
+        "• <code>/rp_list_week</code> — полный список (7 дней)\n"
         "• <code>/rp_me</code> — статистика игрока\n"
         "• <code>/rp_off</code> — выключить",
         parse_mode="HTML"
     )
 
-
 @dp.message(Command("rp_off"))
 async def cmd_rp_off(message: types.Message):
-    if message.chat.type not in ("group", "supergroup"):
-        return
-    if not is_bot_owner(message):
-        return
+    if message.chat.type not in ("group", "supergroup"): return
+    if not is_bot_owner(message): return
 
     await disable_rp_chat(message.chat.id)
     await message.answer("🔕 Счётчик РП выключен.")
 
-
-# ==================== ТОПЫ ПО ОТЫГРЫШУ ====================
+# ==================== ТОПЫ ====================
 @dp.message(Command("top_rp", "топрп"))
 async def cmd_top_rp(message: types.Message):
-    if message.chat.type not in ("group", "supergroup"):
-        return
-    if not is_bot_owner(message):
-        return
+    if message.chat.type not in ("group", "supergroup"): return
+    if not is_bot_owner(message): return
     await _render_top(message, "today", "rp")
-
 
 @dp.message(Command("top_rp_week", "топрпнед"))
 async def cmd_top_rp_week(message: types.Message):
-    if message.chat.type not in ("group", "supergroup"):
-        return
-    if not is_bot_owner(message):
-        return
+    if message.chat.type not in ("group", "supergroup"): return
+    if not is_bot_owner(message): return
     await _render_top(message, "week", "rp")
 
-
-# ==================== ТОПЫ ПО ОФФТОПУ ====================
 @dp.message(Command("top_off", "топофф"))
 async def cmd_top_off(message: types.Message):
-    if message.chat.type not in ("group", "supergroup"):
-        return
-    if not is_bot_owner(message):
-        return
+    if message.chat.type not in ("group", "supergroup"): return
+    if not is_bot_owner(message): return
     await _render_top(message, "today", "off")
-
 
 @dp.message(Command("top_off_week", "топоффнед"))
 async def cmd_top_off_week(message: types.Message):
-    if message.chat.type not in ("group", "supergroup"):
-        return
-    if not is_bot_owner(message):
-        return
+    if message.chat.type not in ("group", "supergroup"): return
+    if not is_bot_owner(message): return
     await _render_top(message, "week", "off")
 
-
-# ==================== СПИСОК ====================
-@dp.message(Command("rp_list"))
-async def cmd_rp_list(message: types.Message):
-    if message.chat.type not in ("group", "supergroup"):
-        return
-    if not is_bot_owner(message):
-        return
-
+# ==================== СПИСКИ ====================
+async def _render_list(message: types.Message, period: str):
     thread_id = get_thread_id(message)
-    rows = await get_rp_top(message.chat.id, thread_id, [today_key()])
+    
+    if period == "today":
+        keys = [today_key()]
+        period_label = "сегодня"
+    else:
+        keys = week_keys()
+        period_label = "за 7 дней"
+
+    rows = await get_rp_top(message.chat.id, thread_id, keys)
+    
     if not rows:
-        await message.answer("📭 Сегодня в этой ветке ещё не было активности.")
+        await message.answer(f"📭 За {period_label} в этой ветке ещё не было активности.")
         return
 
-    lines = ["📋 <b>СПИСОК УЧАСТНИКОВ (эта ветка, сегодня)</b>", "━━━━━━━━━━━━━", ""]
+    lines = [f"📋 <b>СПИСОК УЧАСТНИКОВ (эта ветка, {period_label})</b>", "━━━━━━━━━━━━━", ""]
     for i, r in enumerate(rows, 1):
         name = _name(r)
         total = r["total_rp"] + r["total_off"]
@@ -209,14 +179,23 @@ async def cmd_rp_list(message: types.Message):
     except Exception as e:
         log.warning(f"rp_list send error: {e}")
 
+@dp.message(Command("rp_list"))
+async def cmd_rp_list(message: types.Message):
+    if message.chat.type not in ("group", "supergroup"): return
+    if not is_bot_owner(message): return
+    await _render_list(message, "today")
+
+@dp.message(Command("rp_list_week"))
+async def cmd_rp_list_week(message: types.Message):
+    if message.chat.type not in ("group", "supergroup"): return
+    if not is_bot_owner(message): return
+    await _render_list(message, "week")
 
 # ==================== ЛИЧНАЯ СТАТИСТИКА ====================
 @dp.message(Command("rp_me"))
 async def cmd_rp_me(message: types.Message):
-    if message.chat.type not in ("group", "supergroup"):
-        return
-    if not is_bot_owner(message):
-        return
+    if message.chat.type not in ("group", "supergroup"): return
+    if not is_bot_owner(message): return
 
     target_id = message.from_user.id
     target_name = message.from_user.first_name or "Игрок"
@@ -248,32 +227,24 @@ async def cmd_rp_me(message: types.Message):
         parse_mode="HTML"
     )
 
-
 # ==================== СЧЁТЧИК ====================
 @dp.message(F.text)
 async def rp_stats_handler(message: types.Message):
     chat_id = message.chat.id
-    if message.chat.type not in ("group", "supergroup"):
-        return
-    if not message.from_user:
-        return
-    if not await is_rp_chat_enabled(chat_id):
-        return
+    if message.chat.type not in ("group", "supergroup"): return
+    if not message.from_user: return
+    if not await is_rp_chat_enabled(chat_id): return
 
     text = message.text or ""
-    if not text:
-        return
+    if not text: return
 
-    # Пропускаем команды (начинаются с /, но НЕ с //)
-    if text.startswith("/") and not text.startswith("//"):
-        return
+    if text.startswith("/") and not text.startswith("//"): return
 
     rp_part, offtop_part = parse_message(text)
     rp_chars = count_chars(rp_part)
     offtop_chars = count_chars(offtop_part)
 
-    if rp_chars == 0 and offtop_chars == 0:
-        return
+    if rp_chars == 0 and offtop_chars == 0: return
 
     thread_id = get_thread_id(message)
     try:
@@ -297,7 +268,6 @@ async def rp_stats_handler(message: types.Message):
     except Exception as e:
         log.warning(f"remember_user_name error: {e}")
 
-
 # ==================== УТИЛИТА ====================
 def _name(row) -> str:
     if row.get("username"):
@@ -305,7 +275,6 @@ def _name(row) -> str:
     if row.get("first_name"):
         return row["first_name"]
     return f"Игрок #{row['user_id']}"
-
 
 # ==================== CLEANUP ====================
 async def cleanup_rp_stats():
