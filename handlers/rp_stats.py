@@ -78,12 +78,20 @@ async def _render_top(message: types.Message, period: str, kind: str):
 
     medals = {1: "🥇", 2: "🥈", 3: "🥉"}
     lines = [title, "━━━━━━━━━━━━━", ""]
-    for i, r in enumerate(rows[:15], 1):
+    
+    # Убрали ограничение [:15], теперь выводим всех
+    for i, r in enumerate(rows, 1):
         medal = medals.get(i, f"{i}.")
         lines.append(f"{medal} <b>{_name(r)}</b> — {r[field]} симв.")
 
+    text = "\n".join(lines)
+    
+    # Защита от превышения лимита Telegram (4096 символов)
+    if len(text) > 4000:
+        text = text[:3900] + "\n…"
+
     try:
-        await message.answer("\n".join(lines), parse_mode="HTML")
+        await message.answer(text, parse_mode="HTML")
     except Exception as e:
         log.warning(f"top send error: {e}")
 
