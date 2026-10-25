@@ -79,17 +79,24 @@ async def _render_top(message: types.Message, period: str, kind: str):
     medals = {1: "🥇", 2: "🥈", 3: "🥉"}
     lines = [title, "━━━━━━━━━━━━━", ""]
     
-    # Убрали ограничение [:15], теперь выводим всех
+    # Считаем начальную длину текста
+    current_length = sum(len(line) + 1 for line in lines)
+    
+    # Безопасное добавление строк (защита от разрыва HTML-тегов)
     for i, r in enumerate(rows, 1):
         medal = medals.get(i, f"{i}.")
-        lines.append(f"{medal} <b>{_name(r)}</b> — {r[field]} симв.")
+        line = f"{medal} <b>{_name(r)}</b> — {r[field]} симв."
+        
+        # +1 за символ переноса строки \n
+        if current_length + len(line) + 1 > 4000:
+            lines.append("\n…")
+            break
+            
+        lines.append(line)
+        current_length += len(line) + 1
 
     text = "\n".join(lines)
     
-    # Защита от превышения лимита Telegram (4096 символов)
-    if len(text) > 4000:
-        text = text[:3900] + "\n…"
-
     try:
         await message.answer(text, parse_mode="HTML")
     except Exception as e:
@@ -167,21 +174,32 @@ async def _render_list(message: types.Message, period: str):
         await message.answer(f"📭 За {period_label} в этой ветке ещё не было активности.")
         return
 
+    # Сортируем список по ОБЩЕМУ количеству символов (отыгрыш + оффтоп)
+    rows.sort(key=lambda r: (r["total_rp"] + r["total_off"]), reverse=True)
+
     lines = [f"📋 <b>СПИСОК УЧАСТНИКОВ (эта ветка, {period_label})</b>", "━━━━━━━━━━━━━", ""]
+    current_length = sum(len(line) + 1 for line in lines)
+    
+    # Безопасное добавление строк (защита от разрыва HTML-тегов)
     for i, r in enumerate(rows, 1):
         name = _name(r)
         total = r["total_rp"] + r["total_off"]
         rp = r["total_rp"]
         off = r["total_off"]
         flag = " ⚠️ <i>(только оффтоп)</i>" if rp == 0 and off > 0 else ""
-        lines.append(
-            f"{i}. <b>{name}</b>{flag}\n"
-            f"   Всего: {total} · Отыгрыш: {rp} · Оффтоп: {off}"
-        )
+        
+        # Строка списка состоит из двух строк, соединенных \n
+        line = f"{i}. <b>{name}</b>{flag}\n   Всего: {total} · Отыгрыш: {rp} · Оффтоп: {off}"
+        
+        if current_length + len(line) + 1 > 4000:
+            lines.append("\n…")
+            break
+            
+        lines.append(line)
+        current_length += len(line) + 1
 
     text = "\n".join(lines)
-    if len(text) > 4000:
-        text = text[:3900] + "\n…"
+    
     try:
         await message.answer(text, parse_mode="HTML")
     except Exception as e:
